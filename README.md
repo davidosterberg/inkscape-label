@@ -10,4 +10,4 @@ run `bash install.sh` to install to `~/.config/inkscape/extensions/`
 
 ### Example
 
-![Example](img/stress.svg)
+![Example](img/stress.png)
