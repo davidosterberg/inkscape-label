@@ -63,28 +63,60 @@ def text_bbox(text):
     h = float(subprocess.check_output("inkscape -z -D -f /tmp/bullshit.svg -H".split()))
     os.remove("/tmp/bullshit.svg")
     return w, h
-  
+
 
 class Label(inkex.Effect):
     def __init__(self):
         inkex.Effect.__init__(self)
-        self.OptionParser.add_option("-d", "--text",
+        self.OptionParser.add_option("-t", "--text",
                                      action="store", type="string",
-                                     dest="text", default='??? MPa',
+                                     dest="text", default='',
                                      help="Text put on label")
-        self.OptionParser.add_option("-o", "--opacity",
+        self.OptionParser.add_option("-f", "--font-family",
                                      action="store", type="string",
-                                     dest="opacity", default='70.0',
+                                     dest="font_family", default='',
+                                     help="Font to use")
+        self.OptionParser.add_option("-s", "--font-size",
+                                     action="store", type="string",
+                                     dest="font_size", default='',
+                                     help="Font size in pixels")
+        self.OptionParser.add_option("--font-color",
+                                     action="store", type="string",
+                                     dest="font_color", default='',
+                                     help="color of label font")
+        self.OptionParser.add_option("-c", "--background-color",
+                                     action="store", type="string",
+                                     dest="background_color", default='',
+                                     help="color of label background")
+        self.OptionParser.add_option("-o", "--background-opacity",
+                                     action="store", type="string",
+                                     dest="background_opacity", default='',
                                      help="opacity of label background")
+        self.OptionParser.add_option("--stroke-width-1",
+                                     action="store", type="string",
+                                     dest="stroke_width_1", default='',
+                                     help="Width of leader 1 in pixels")
+        self.OptionParser.add_option("--stroke-width-2",
+                                     action="store", type="string",
+                                     dest="stroke_width_2", default='',
+                                     help="Width of leader 2 in pixels")
+        self.OptionParser.add_option("--stroke-color-1",
+                                     action="store", type="string",
+                                     dest="stroke_color_1", default='',
+                                     help="Color code of leader 1 or hex color")
+        self.OptionParser.add_option("--stroke-color-2",
+                                     action="store", type="string",
+                                     dest="stroke_color_2", default='',
+                                     help="Color code of leader 2 or hex color")
 
 
     def _make_text(self):
         self.style_text = {
-            'font-size': str(self.doc_h/30) + 'px',
-            'font-family': 'Sans',
+            'font-size': self.options.font_size,
+            'font-family': self.options.font_family,
             'text-anchor': 'start',
             'text-align': 'left',
-            'fill': simplestyle.svgcolors['black']}
+            'fill': simplestyle.svgcolors[self.options.font_color]}
 
         formated_style =  simplestyle.formatStyle(self.style_text)
         txt_atts = {'style': formated_style,
@@ -100,8 +132,12 @@ class Label(inkex.Effect):
         self.t_w, self.t_h = t_w, t_h
         self.t.set('x', str(0.03*t_w))
         self.t.set('y', str(-0.5*(-1.15*t_h + 0.075*t_h)))
+        style_box = {
+            'fill': simplestyle.svgcolors[self.options.background_color],
+            'fill-opacity': self.options.background_opacity,
+            'stroke': 'none',}
         rect_atts = {
-            'style': "fill:#ffffff;fill-opacity:0.7;stroke:none",
+            'style': simplestyle.formatStyle(style_box),
             'width': str(1.08*t_w),
             'height': str(1.15*t_h),
             'x': "0.0",
@@ -111,17 +147,32 @@ class Label(inkex.Effect):
 
 
     def _add_leader(self):
-        path_atts0 = {
+
+        w1 = float(self.options.stroke_width_1)
+        w2 = float(self.options.stroke_width_2)
+        offset = 0.5*(w1 + w2)
+
+        self.leader = inkex.etree.SubElement(self.label, 'g')
+
+        style_line1 = {
+                'fill': 'none',
+                'stroke': simplestyle.svgcolors[self.options.stroke_color_1],
+                'stroke-width': self.options.stroke_width_1,}
+        path_atts_1 = {
             inkex.addNS('connector-curvature', 'inkscape'): "0",
             'd': "M 0.0,0.0 %f,0.0" % (self.leader_length,),
-            'style':"fill:none;stroke:#000000;stroke-width:2px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1",}
-        path_atts1 = {
+            'style': simplestyle.formatStyle(style_line1), }
+        inkex.etree.SubElement(self.leader, 'path', path_atts_1)
+
+        style_line2 = {
+                'fill': 'none',
+                'stroke': simplestyle.svgcolors[self.options.stroke_color_2],
+                'stroke-width': self.options.stroke_width_2,}
+        path_atts_2 = {
             inkex.addNS('connector-curvature', 'inkscape'): "0",
-            'd': "M 0.0,2.0 %f,2.0" % (self.leader_length,),
-            'style':"fill:none;stroke:#ffffff;stroke-width:2px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1",}
-        self.leader = inkex.etree.SubElement(self.label, 'g')
-        inkex.etree.SubElement(self.leader, 'path', path_atts0)
-        inkex.etree.SubElement(self.leader, 'path', path_atts1)
+            'd': "M 0.0,%f %f,2.0" % (offset, self.leader_length),
+            'style': simplestyle.formatStyle(style_line2),}
+        inkex.etree.SubElement(self.leader, 'path', path_atts_2)
 
 
     def effect(self):
@@ -169,7 +220,5 @@ class Label(inkex.Effect):
 
 
 if __name__ == '__main__':
-
     e = Label()
     e.affect()
-
