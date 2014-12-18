@@ -11,7 +11,8 @@ sys.path.append('/usr/share/inkscape/extensions')
 import inkex
 import simplepath
 import simplestyle
-import simpletransform
+from simpletransform import parseTransform, applyTransformToNode
+
 
 def get_n_points_from_path(node, n):
     """returns a list of first n points (x,y) in an SVG path-representing node"""
@@ -57,11 +58,13 @@ def text_bbox(text):
     """Hack to compute height and with of a text in units of px.
      Works by constructing SVG and asking Inkscape."""
     svg = TEMPLATE.format(tag=text)
-    with open('/tmp/bullshit.svg','w') as fp:
-        fp.write(svg.encode('utf-8'))
-    w = float(subprocess.check_output("inkscape -z -D -f /tmp/bullshit.svg -W".split()))
-    h = float(subprocess.check_output("inkscape -z -D -f /tmp/bullshit.svg -H".split()))
-    os.remove("/tmp/bullshit.svg")
+    try:
+        with open('/tmp/bullshit.svg','w') as fp:
+            fp.write(svg.encode('utf-8'))
+        w = float(subprocess.check_output("inkscape -z -D -f /tmp/bullshit.svg -W".split()))
+        h = float(subprocess.check_output("inkscape -z -D -f /tmp/bullshit.svg -H".split()))
+    finally:
+        os.remove("/tmp/bullshit.svg")
     return w, h
 
 
@@ -109,114 +112,121 @@ class Label(inkex.Effect):
                                      dest="stroke_color_2", default='',
                                      help="Color code of leader 2 or hex color")
 
-
-    def _make_text(self):
-        self.style_text = {
-            'font-size': self.options.font_size,
-            'font-family': self.options.font_family,
-            'text-anchor': 'start',
+    def make_text(self, anchor='start'):
+        options = self.options
+        font_size = float(options.font_size)
+        style = {
+            'font-size': options.font_size,
+            'font-family': options.font_family,
+            'text-anchor': anchor,
             'text-align': 'left',
-            'fill': simplestyle.svgcolors[self.options.font_color]}
-
-        formated_style =  simplestyle.formatStyle(self.style_text)
+            'fill': simplestyle.svgcolors[options.font_color]}
+        
+        formated_style =  simplestyle.formatStyle(style)
         txt_atts = {'style': formated_style,
                     'x': str(0.0),
-                    'y': str(0.0),
+                    'y': str(font_size*0.4),
                     inkex.addNS('space', 'xml'): 'preserve',}
-        self.t = inkex.etree.Element('text', txt_atts)
-        self.t.text = self.options.text
+        t = inkex.etree.Element('text', txt_atts)
+        t.text = options.text.decode('utf-8')
+        t_w, t_h = text_bbox(inkex.etree.tostring(t))
+        return t, t_w, t_h
+    
 
-
-    def _add_box(self):
-        t_w, t_h = text_bbox(inkex.etree.tostring(self.t))
-        self.t_w, self.t_h = t_w, t_h
-        self.t.set('x', str(0.03*t_w))
-        self.t.set('y', str(-0.5*(-1.15*t_h + 0.075*t_h)))
+    def make_box(self, x, y, w, h, r):
+        opt = self.options
         style_box = {
-            'fill': simplestyle.svgcolors[self.options.background_color],
-            'fill-opacity': self.options.background_opacity,
+            'fill': simplestyle.svgcolors[opt.background_color],
+            'fill-opacity': opt.background_opacity,
             'stroke': 'none',}
         rect_atts = {
             'style': simplestyle.formatStyle(style_box),
-            'width': str(1.08*t_w),
-            'height': str(1.15*t_h),
-            'x': "0.0",
-            'y': str(0.5*(-1.15*t_h + 0.075*t_h)),
-            'ry': str(0.25*min(t_w, t_h)),}
-        self.box = inkex.etree.SubElement(self.inner_label_tag, 'rect', rect_atts)
+            'width': str(w),
+            'height': str(h),
+            'x': str(x),
+            'y': str(y),
+            'ry': str(r),}
+        return inkex.etree.Element('rect', rect_atts)
 
 
-    def _add_leader(self):
-
-        w1 = float(self.options.stroke_width_1)
-        w2 = float(self.options.stroke_width_2)
+    def make_double_line(self, length):
+        opt = self.options
+        
+        w1 = float(opt.stroke_width_1)
+        w2 = float(opt.stroke_width_2)
         offset = 0.5*(w1 + w2)
 
-        self.leader = inkex.etree.SubElement(self.label, 'g')
+        line = inkex.etree.Element('g')
 
         style_line1 = {
                 'fill': 'none',
-                'stroke': simplestyle.svgcolors[self.options.stroke_color_1],
-                'stroke-width': self.options.stroke_width_1,}
+                'stroke': simplestyle.svgcolors[opt.stroke_color_1],
+                'stroke-width': opt.stroke_width_1,}
         path_atts_1 = {
             inkex.addNS('connector-curvature', 'inkscape'): "0",
-            'd': "M 0.0,0.0 %f,0.0" % (self.leader_length,),
+            'd': "M 0.0,0.0 %f,0.0" % (length,),
             'style': simplestyle.formatStyle(style_line1), }
-        inkex.etree.SubElement(self.leader, 'path', path_atts_1)
+        inkex.etree.SubElement(line, 'path', path_atts_1)
 
         style_line2 = {
                 'fill': 'none',
-                'stroke': simplestyle.svgcolors[self.options.stroke_color_2],
-                'stroke-width': self.options.stroke_width_2,}
+                'stroke': simplestyle.svgcolors[opt.stroke_color_2],
+                'stroke-width': opt.stroke_width_2,}
         path_atts_2 = {
             inkex.addNS('connector-curvature', 'inkscape'): "0",
-            'd': "M 0.0,%f %f,2.0" % (offset, self.leader_length),
+            'd': "M 0.0,%f %f,%f.0" % (offset, length, offset),
             'style': simplestyle.formatStyle(style_line2),}
-        inkex.etree.SubElement(self.leader, 'path', path_atts_2)
+        inkex.etree.SubElement(line, 'path', path_atts_2)
+            
+        return line
 
 
     def effect(self):
         pts = []
         for node in self.selected.itervalues():
             if node.tag == inkex.addNS('path','svg'):
-                lead = node
+                guide = node
                 pts = get_n_points_from_path(node, 2)
 
         if len(pts) == 2:
-
-            (self.x0, self.y0), (self.x1, self.y1) = pts
-
-            theta = atan2(self.y1-self.y0, self.x1-self.x0)*180./pi
-            self.leader_length = ((self.x1-self.x0)**2 + (self.y1-self.y0)**2)**0.5
-
-            parent = self.document.getroot()
-
-            self.doc_w = inkex.unittouu(parent.get('width'))
-            self.doc_h = inkex.unittouu(parent.get('height'))
-
-            self.label = inkex.etree.SubElement(self.current_layer, 'g')
-            self.labeltag = inkex.etree.SubElement(self.label, 'g')
-            self.inner_label_tag = inkex.etree.SubElement(self.labeltag, 'g')
-
-            self._make_text()
-            self._add_box()
-            self.inner_label_tag.append(self.t)     
-
+    
+            (x0, y0), (x1, y1) = pts
+            theta = atan2(y1-y0, x1-x0)*180./pi
+            length = ((x1-x0)**2 + (y1-y0)**2)**0.5
+            
+            label = inkex.etree.SubElement(self.current_layer, 'g')
+            labeltag = inkex.etree.SubElement(label, 'g')
+            
+            
             if theta <= -90.0 or theta > 90.0:
-                transformation = 'translate(%s, 0.0) rotate(180.0)'% (self.box.get('width'),)
-                transform = simpletransform.parseTransform(transformation)
-                simpletransform.applyTransformToNode(transform, self.inner_label_tag)
+                text, tw, th = self.make_text(anchor='end')
+                applyTransformToNode(parseTransform('rotate(180.0)'), text)
+            else:
+                text, tw, th = self.make_text(anchor='start')
+            
+            fs = float(self.options.font_size)
+            kh = 1.05
+            h = kh*fs
+            pad = (h - fs)*0.5 + 0.04*tw
+            w = tw + pad*2
+            x = -pad + 0.07*fs
+            y = -0.5*h
 
-            transformation = 'translate(%f, %f)'% (self.leader_length, 0.0)
-            transform = simpletransform.parseTransform(transformation)
-            simpletransform.applyTransformToNode(transform, self.labeltag)
+            box = self.make_box(x, y, w, h, r=0.25*min(w, h))
 
-            self._add_leader()
-            transformation = 'translate(%f, %f) rotate(%f)'% (self.x0, self.y0, theta)
-            transform = simpletransform.parseTransform(transformation)
-            simpletransform.applyTransformToNode(transform, self.label)
+            labeltag.append(box)
+            labeltag.append(text)
 
-            lead.getparent().remove(lead)
+            transform = 'translate(%f, 0.0)'% (length,)
+            applyTransformToNode(parseTransform(transform), labeltag)
+            
+            leader = self.make_double_line(length+x)
+            label.append(leader)
+
+            transform = 'translate(%f, %f) rotate(%f)'%(x0, y0, theta)
+            applyTransformToNode(parseTransform(transform), label)
+        
+            guide.getparent().remove(guide)
 
 
 if __name__ == '__main__':
