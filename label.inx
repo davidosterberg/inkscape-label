@@ -9,13 +9,13 @@
     <dependency type="executable" location="extensions">label.py</dependency>
     <param name="text" type="string" _gui-text="What should the label say?"> MPa</param>
     <param name="font-family" type="string" _gui-text="Font family">Sans</param>
-    <param name="font-size" type="float" min="0.0" max="10000" _gui-text="Font size (px)">30.0</param>
+    <param name="font-size" type="float" min="0.0" max="10000" _gui-text="Font size">30.0</param>
     <param name="font-color" type="string" _gui-text="Font color">black</param>
     <param name="background-color" type="string" _gui-text="Background color">white</param>
     <param name="background-opacity" type="float" min="0.0" max="1.0" _gui-text="Background opacity">0.7</param>
-    <param name="stroke-width-1" type="float" min="0.0" max="10000" _gui-text="Line 1 width (px)">2.0</param>
+    <param name="stroke-width-1" type="float" min="0.0" max="10000" _gui-text="Line 1 width">2.0</param>
     <param name="stroke-color-1" type="string" _gui-text="Line 1 color">black</param>
-    <param name="stroke-width-2" type="float" min="0.0" max="10000" _gui-text="Line 2 width (px)">2.0</param>
+    <param name="stroke-width-2" type="float" min="0.0" max="10000" _gui-text="Line 2 width">2.0</param>
     <param name="stroke-color-2" type="string" _gui-text="Line 2 color">white</param>
     <effect>
         <object-type>all</object-type>

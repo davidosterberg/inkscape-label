@@ -3,6 +3,7 @@
 
 import subprocess
 import os
+import platform
 import sys
 from math import pi, atan2
 
@@ -55,14 +56,20 @@ TEMPLATE = u"""<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 """
 
 def text_bbox(text):
-    """Hack to compute height and with of a text in units of px.
+    """Hack to compute height and with of a text in units of the document.
      Works by constructing SVG and asking Inkscape."""
+
+    if platform.system() == 'Darwin':
+        inkscape = '/Applications/Inkscape.app/Contents/Resources/bin/inkscape'
+    else:
+        inkscape = 'inkscape'
+
     svg = TEMPLATE.format(tag=text)
     try:
         with open('/tmp/bullshit.svg','w') as fp:
             fp.write(svg.encode('utf-8'))
-        w = float(subprocess.check_output("inkscape -z -D -f /tmp/bullshit.svg -W".split()))
-        h = float(subprocess.check_output("inkscape -z -D -f /tmp/bullshit.svg -H".split()))
+        w = float(subprocess.check_output([inkscape, '-z', '-D', '-f', '/tmp/bullshit.svg', '-W']))
+        h = float(subprocess.check_output([inkscape, '-z', '-D', '-f', '/tmp/bullshit.svg', '-H']))
     finally:
         os.remove("/tmp/bullshit.svg")
     return w, h
@@ -82,7 +89,7 @@ class Label(inkex.Effect):
         self.OptionParser.add_option("-s", "--font-size",
                                      action="store", type="string",
                                      dest="font_size", default='',
-                                     help="Font size in pixels")
+                                     help="Font size")
         self.OptionParser.add_option("--font-color",
                                      action="store", type="string",
                                      dest="font_color", default='',
@@ -98,11 +105,11 @@ class Label(inkex.Effect):
         self.OptionParser.add_option("--stroke-width-1",
                                      action="store", type="string",
                                      dest="stroke_width_1", default='',
-                                     help="Width of leader 1 in pixels")
+                                     help="Width of leader 1")
         self.OptionParser.add_option("--stroke-width-2",
                                      action="store", type="string",
                                      dest="stroke_width_2", default='',
-                                     help="Width of leader 2 in pixels")
+                                     help="Width of leader 2")
         self.OptionParser.add_option("--stroke-color-1",
                                      action="store", type="string",
                                      dest="stroke_color_1", default='',
