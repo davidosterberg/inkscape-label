@@ -123,7 +123,7 @@ class Label(inkex.Effect):
         options = self.options
         font_size = float(options.font_size)
         style = {
-            'font-size': options.font_size,
+            'font-size': options.font_size + 'px',
             'font-family': options.font_family,
             'text-anchor': anchor,
             'text-align': 'left',
@@ -168,7 +168,7 @@ class Label(inkex.Effect):
         style_line1 = {
                 'fill': 'none',
                 'stroke': simplestyle.svgcolors[opt.stroke_color_1],
-                'stroke-width': opt.stroke_width_1,}
+                'stroke-width': opt.stroke_width_1+'px',}
         path_atts_1 = {
             inkex.addNS('connector-curvature', 'inkscape'): "0",
             'd': "M 0.0,0.0 %f,0.0" % (length,),
@@ -178,7 +178,7 @@ class Label(inkex.Effect):
         style_line2 = {
                 'fill': 'none',
                 'stroke': simplestyle.svgcolors[opt.stroke_color_2],
-                'stroke-width': opt.stroke_width_2,}
+                'stroke-width': opt.stroke_width_2+'px',}
         path_atts_2 = {
             inkex.addNS('connector-curvature', 'inkscape'): "0",
             'd': "M 0.0,%f %f,%f.0" % (offset, length, offset),
